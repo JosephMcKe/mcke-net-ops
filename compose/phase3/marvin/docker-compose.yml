@@ -1,0 +1,121 @@
+version: "3.9"
+networks:
+  public:
+    driver: bridge
+
+services:
+  homeassistant:
+    image: ${IMG_HA}:${TAG_HA}
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    environment:
+      - TZ=${TZ}
+    volumes:
+      - ${CFG_ROOT}/ha:/config
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ha.rule=Host(`ha.mcke.lan`)"
+      - "traefik.http.routers.ha.entrypoints=websecure"
+      - "traefik.http.routers.ha.tls=true"
+      - "traefik.http.routers.ha.middlewares=sec-headers,forward-auth,rate-limit"
+    networks: [ public ]
+    restart: unless-stopped
+
+  n8n:
+    image: ${IMG_N8N}:${TAG_N8N}
+    environment:
+      - TZ=${TZ}
+      - SMTP_HOST=localhost
+      - SMTP_PORT=1025
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM}
+    volumes:
+      - ${CFG_ROOT}/n8n:/config
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.flows.rule=Host(`flows.mcke.lan`)"
+      - "traefik.http.routers.flows.entrypoints=websecure"
+      - "traefik.http.routers.flows.tls=true"
+      - "traefik.http.routers.flows.middlewares=sec-headers,forward-auth,rate-limit"
+    networks: [ public ]
+    restart: unless-stopped
+
+  gitea:
+    image: ${IMG_GITEA}:${TAG_GITEA}
+    volumes:
+      - ${CFG_ROOT}/gitea:/data
+      - ${DATA_ROOT}/git:/repos
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.git.rule=Host(`git.mcke.lan`)"
+      - "traefik.http.routers.git.entrypoints=websecure"
+      - "traefik.http.routers.git.tls=true"
+      - "traefik.http.routers.git.middlewares=sec-headers,forward-auth,rate-limit"
+    networks: [ public ]
+    restart: unless-stopped
+
+  homepage:
+    image: ${IMG_HOMEPAGE}:${TAG_HOMEPAGE}
+    volumes:
+      - ${CFG_ROOT}/homepage:/config
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.home.rule=Host(`home.mcke.lan`)"
+      - "traefik.http.routers.home.entrypoints=websecure"
+      - "traefik.http.routers.home.tls=true"
+      - "traefik.http.routers.home.middlewares=sec-headers,lan-only,rate-limit"
+    networks: [ public ]
+    restart: unless-stopped
+
+  kuma:
+    image: ${IMG_KUMA}:${TAG_KUMA}
+    volumes:
+      - ${CFG_ROOT}/kuma:/config
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.status.rule=Host(`status.mcke.lan`)"
+      - "traefik.http.routers.status.entrypoints=websecure"
+      - "traefik.http.routers.status.tls=true"
+      - "traefik.http.routers.status.middlewares=sec-headers,forward-auth,rate-limit"
+    networks: [ public ]
+    restart: unless-stopped
+
+  diun:
+    image: ${IMG_DIUN}:${TAG_DIUN}
+    volumes:
+      - ${CFG_ROOT}/diun:/config
+    networks: [ public ]
+    restart: unless-stopped
+
+  scrutiny:
+    image: ${IMG_SCRUTINY}:${TAG_SCRUTINY}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.scrutiny.rule=Host(`scrutiny.mcke.lan`)"
+      - "traefik.http.routers.scrutiny.entrypoints=websecure"
+      - "traefik.http.routers.scrutiny.tls=true"
+      - "traefik.http.routers.scrutiny.middlewares=sec-headers,forward-auth,rate-limit"
+    networks: [ public ]
+    restart: unless-stopped
+
+  kiwix:
+    image: ${IMG_KIWIX}:${TAG_KIWIX}
+    volumes:
+      - ${DATA_ROOT}/knowledge/zim:/data:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kiwix.rule=Host(`kiwix.mcke.lan`)"
+      - "traefik.http.routers.kiwix.entrypoints=websecure"
+      - "traefik.http.routers.kiwix.tls=true"
+      - "traefik.http.routers.kiwix.middlewares=sec-headers,lan-only,rate-limit"
+    networks: [ public ]
+    restart: unless-stopped
+
+  netdata:
+    image: ${IMG_NETDATA}:${TAG_NETDATA}
+    pid: host
+    network_mode: host
+    cap_add: ["SYS_PTRACE"]
+    security_opt: ["apparmor:unconfined"]
+    restart: unless-stopped

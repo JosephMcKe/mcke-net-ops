@@ -1,0 +1,29 @@
+<mxfile host="app.diagrams.net" modified="2025-08-11T12:00:00Z" agent="homelab-plan" version="24.7.1">
+  <diagram id="homelab1" name="Homelab">
+    <mxGraphModel dx="1280" dy="720" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="edge" value="UCG Ultra (192.168.1.1)
+DNS • VPN (LAN) • Bonjour: LAN↔IoT (_ipp/_ipps)" style="shape=swimlane;childLayout=stackLayout;rounded=1;whiteSpace=wrap;verticalAlign=top;" vertex="1" parent="1"><mxGeometry x="40" y="80" width="350" height="200" as="geometry"/></mxCell>
+        <mxCell id="lan" value="LAN 192.168.1.0/24 • mcke.lan" style="shape=swimlane;rounded=1;whiteSpace=wrap;verticalAlign=top;" vertex="1" parent="1"><mxGeometry x="420" y="40" width="1120" height="400" as="geometry"/></mxCell>
+        <mxCell id="iot" value="IoT 192.168.2.0/24 • mcke.iot" style="shape=swimlane;rounded=1;whiteSpace=wrap;verticalAlign=top;" vertex="1" parent="1"><mxGeometry x="420" y="460" width="540" height="260" as="geometry"/></mxCell>
+        <mxCell id="gst" value="Guest 192.168.3.0/24 • mcke.gst (Internet only)" style="shape=swimlane;rounded=1;whiteSpace=wrap;verticalAlign=top;" vertex="1" parent="1"><mxGeometry x="980" y="460" width="560" height="260" as="geometry"/></mxCell>
+
+        <mxCell id="hal" value="HAL (app1.mcke.lan • 192.168.1.11)
+Traefik, authentik, Jellyfin, Nextcloud+Collabora, PhotoPrism, Paperless, Ollama, Whisper/Piper, Calibre-Web, Tandoor, Postgres, Redis, Netdata, Trivy" style="rounded=1;whiteSpace=wrap;fillColor=#dae8fc" vertex="1" parent="lan"><mxGeometry x="20" y="40" width="520" height="170" as="geometry"/></mxCell>
+        <mxCell id="marvin" value="Marvin (app2.mcke.lan • 192.168.1.12)
+HA+ZHA+Music Assistant, n8n, Gitea, Homepage, Kuma, diun, Scrutiny, chrony, Kiwix, Netdata, Trivy, Proton Bridge" style="rounded=1;whiteSpace=wrap;fillColor=#d5e8d4" vertex="1" parent="lan"><mxGeometry x="560" y="40" width="520" height="170" as="geometry"/></mxCell>
+        <mxCell id="nas" value="DeepThought (nas.mcke.lan • 192.168.1.13)
+TrueNAS • ZFS mirrors • LACP • NUT • USB backups" style="rounded=1;whiteSpace=wrap;fillColor=#ffe6cc" vertex="1" parent="lan"><mxGeometry x="20" y="230" width="520" height="120" as="geometry"/></mxCell>
+
+        <mxCell id="iotdev" value="IoT: TVs
+192.168.2.104 / 192.168.2.105 (allow → HAL:443 only)" style="rounded=1;whiteSpace=wrap;fillColor=#fff2cc" vertex="1" parent="iot"><mxGeometry x="20" y="40" width="300" height="80" as="geometry"/></mxCell>
+        <mxCell id="printer" value="Printer (print.mcke.lan • 192.168.1.24)
+AirPrint (IPP 631/tcp)" style="rounded=1;whiteSpace=wrap;fillColor=#fff2cc" vertex="1" parent="lan"><mxGeometry x="560" y="230" width="250" height="80" as="geometry"/></mxCell>
+
+        <mxCell id="link1" value="" edge="1" parent="lan" source="hal" target="nas"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="link2" value="" edge="1" parent="lan" source="marvin" target="nas"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

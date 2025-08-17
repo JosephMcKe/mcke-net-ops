@@ -1,0 +1,15 @@
+[Unit]
+Description=Proton Mail Bridge (CLI) for %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%i
+ExecStart=/usr/bin/proton-bridge --noninteractive --log-level info
+Restart=on-failure
+Environment=PROTONMAIL_BRIDGE_PROFILE_DIR=/home/%i/.config/protonmail/bridge
+# First run (as the user): proton-bridge --cli  (login to mckeops@protonmail.com; create app password)
+
+[Install]
+WantedBy=multi-user.target

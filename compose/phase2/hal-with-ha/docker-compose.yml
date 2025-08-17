@@ -1,0 +1,17 @@
+version: "3.9"
+services:
+  ha:
+    image: ${IMG_HA}:${TAG_HA}
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    environment:
+      - TZ=${TZ}
+    volumes:
+      - ${CFG_ROOT}/ha:/config
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ha.rule=Host(`ha.mcke.lan`)"
+      - "traefik.http.routers.ha.entrypoints=websecure"
+      - "traefik.http.routers.ha.tls=true"
+      - "traefik.http.routers.ha.middlewares=sec-headers,forward-auth,rate-limit"
+    restart: unless-stopped

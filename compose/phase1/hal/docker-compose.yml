@@ -1,0 +1,251 @@
+version: "3.9"
+networks:
+  public:
+    driver: bridge
+
+volumes:
+  db_data:
+  redis_data:
+
+services:
+  traefik:
+    image: ${IMG_TRAEFIK}:${TAG_TRAEFIK}
+    command:
+      - --providers.file.filename=/config/dynamic.yml
+      - --entrypoints.websecure.address=:443
+      - --api.dashboard=true
+    ports:
+      - "443:443"
+    volumes:
+      - ${CFG_ROOT}/traefik:/config:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - TZ=${TZ}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`ingress.mcke.lan`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls=true"
+      - "traefik.http.routers.traefik.middlewares=sec-headers,forward-auth,rate-limit"
+    networks: [ public ]
+    restart: unless-stopped
+
+  authentik:
+    image: ${IMG_AUTHENTIK}:${TAG_AUTHENTIK}
+    environment:
+      - TZ=${TZ}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM}
+    volumes:
+      - ${CFG_ROOT}/authentik:/config
+    depends_on: [ postgres, redis ]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sso.rule=Host(`sso.mcke.lan`)"
+      - "traefik.http.routers.sso.entrypoints=websecure"
+      - "traefik.http.routers.sso.tls=true"
+      - "traefik.http.routers.sso.middlewares=sec-headers,rate-limit"
+    networks: [ public ]
+    restart: unless-stopped
+
+  postgres:
+    image: ${IMG_POSTGRES}:${TAG_POSTGRES}
+    environment:
+      - TZ=${TZ}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks: [ public ]
+    restart: unless-stopped
+
+  redis:
+    image: ${IMG_REDIS}:${TAG_REDIS}
+    networks: [ public ]
+    restart: unless-stopped
+
+  nextcloud:
+    image: ${IMG_NEXTCLOUD}:${TAG_NEXTCLOUD}
+    environment:
+      - TZ=${TZ}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM}
+    volumes:
+      - ${CFG_ROOT}/nextcloud:/config
+      - ${DATA_ROOT}/cloud:/data
+    depends_on: [ postgres, redis ]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cloud.rule=Host(`cloud.mcke.lan`)"
+      - "traefik.http.routers.cloud.entrypoints=websecure"
+      - "traefik.http.routers.cloud.tls=true"
+      - "traefik.http.routers.cloud.middlewares=sec-headers,forward-auth,rate-limit"
+    networks: [ public ]
+    deploy:
+      resources:
+        limits:
+          cpus: "6.0"
+          memory: 6g
+    restart: unless-stopped
+
+  collabora:
+    image: ${IMG_COLLABORA}:${TAG_COLLABORA}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.office.rule=Host(`office.mcke.lan`)"
+      - "traefik.http.routers.office.entrypoints=websecure"
+      - "traefik.http.routers.office.tls=true"
+      - "traefik.http.routers.office.middlewares=sec-headers,forward-auth,rate-limit"
+    networks: [ public ]
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2g
+    restart: unless-stopped
+
+  jellyfin:
+    image: ${IMG_JELLYFIN}:${TAG_JELLYFIN}
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    environment:
+      - TZ=${TZ}
+    volumes:
+      - ${CFG_ROOT}/jellyfin:/config
+      - ${DATA_ROOT}/media:/media:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.media.rule=Host(`media.mcke.lan`)"
+      - "traefik.http.routers.media.entrypoints=websecure"
+      - "traefik.http.routers.media.tls=true"
+      - "traefik.http.routers.media.middlewares=sec-headers,lan-only,rate-limit"
+    networks: [ public ]
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 4g
+    restart: unless-stopped
+
+  photoprism:
+    image: ${IMG_PHOTOPRISM}:${TAG_PHOTOPRISM}
+    environment:
+      - TZ=${TZ}
+    volumes:
+      - ${CFG_ROOT}/photoprism:/config
+      - ${DATA_ROOT}/photos:/photos
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.photos.rule=Host(`photos.mcke.lan`)"
+      - "traefik.http.routers.photos.entrypoints=websecure"
+      - "traefik.http.routers.photos.tls=true"
+      - "traefik.http.routers.photos.middlewares=sec-headers,forward-auth,rate-limit"
+    networks: [ public ]
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 4g
+    restart: unless-stopped
+
+  paperless:
+    image: ${IMG_PAPERLESS}:${TAG_PAPERLESS}
+    environment:
+      - TZ=${TZ}
+      - PAPERLESS_EMAIL_IMAP_HOST=__TBD__
+      - PAPERLESS_EMAIL_IMAP_PORT=1143
+      - PAPERLESS_EMAIL_IMAP_SSL=False
+    volumes:
+      - ${CFG_ROOT}/paperless:/config
+      - ${DATA_ROOT}/docs:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.docs.rule=Host(`docs.mcke.lan`)"
+      - "traefik.http.routers.docs.entrypoints=websecure"
+      - "traefik.http.routers.docs.tls=true"
+      - "traefik.http.routers.docs.middlewares=sec-headers,forward-auth,rate-limit"
+    networks: [ public ]
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2g
+    restart: unless-stopped
+
+  calibreweb:
+    image: ${IMG_CALIBREWEB}:${TAG_CALIBREWEB}
+    volumes:
+      - ${CFG_ROOT}/calibreweb:/config
+      - ${DATA_ROOT}/ebooks:/books:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ebooks.rule=Host(`ebooks.mcke.lan`)"
+      - "traefik.http.routers.ebooks.entrypoints=websecure"
+      - "traefik.http.routers.ebooks.tls=true"
+      - "traefik.http.routers.ebooks.middlewares=sec-headers,lan-only,rate-limit"
+    networks: [ public ]
+    restart: unless-stopped
+
+  tandoor:
+    image: ${IMG_TANDOOR}:${TAG_TANDOOR}
+    volumes:
+      - ${CFG_ROOT}/tandoor:/config
+      - ${DATA_ROOT}/recipes:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.recipes.rule=Host(`recipes.mcke.lan`)"
+      - "traefik.http.routers.recipes.entrypoints=websecure"
+      - "traefik.http.routers.recipes.tls=true"
+      - "traefik.http.routers.recipes.middlewares=sec-headers,lan-only,rate-limit"
+    networks: [ public ]
+    restart: unless-stopped
+
+  ollama:
+    image: ${IMG_OLLAMA}:${TAG_OLLAMA}
+    volumes:
+      - ${CFG_ROOT}/ollama:/config
+    networks: [ public ]
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 6g
+    restart: unless-stopped
+
+  whisper:
+    image: ${IMG_WHISPER}:${TAG_WHISPER}
+    networks: [ public ]
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2g
+    restart: unless-stopped
+
+  piper:
+    image: ${IMG_PIPER}:${TAG_PIPER}
+    networks: [ public ]
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2g
+    restart: unless-stopped
+
+  netdata:
+    image: ${IMG_NETDATA}:${TAG_NETDATA}
+    pid: host
+    network_mode: host
+    cap_add: ["SYS_PTRACE"]
+    security_opt: ["apparmor:unconfined"]
+    restart: unless-stopped
+
+  trivy:
+    image: ${IMG_TRIVY}:${TAG_TRIVY}
+    command: ["sleep", "infinity"]
+    networks: [ public ]
+    restart: unless-stopped

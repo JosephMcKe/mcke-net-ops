@@ -1,0 +1,36 @@
+http:
+  middlewares:
+    sec-headers:
+      headers:
+        stsSeconds: 31536000
+        forceSTSHeader: true
+        frameDeny: true
+        contentTypeNosniff: true
+        referrerPolicy: "no-referrer"
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+    lan-only:
+      ipWhiteList:
+        sourceRange:
+          - "192.168.1.0/24"
+    forward-auth:
+      forwardAuth:
+        address: "https://sso.mcke.lan/outpost.goauthentik.io/auth/traefik"
+        trustForwardHeader: true
+
+  routers:
+    # Break-glass HA bypass (disabled by default; enable only during maintenance)
+    ha-bypass:
+      entryPoints: ["websecure"]
+      rule: "Host(`ha-bypass.mcke.lan`)"
+      service: ha-svc
+      tls: {}
+      middlewares: ["sec-headers","lan-only","rate-limit"]
+
+  services:
+    ha-svc:
+      loadBalancer:
+        servers:
+          - url: "http://ha:8123"

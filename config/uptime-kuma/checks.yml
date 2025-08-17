@@ -1,0 +1,21 @@
+- name: SSO
+  url: https://sso.mcke.lan/
+  type: http
+- name: Home Assistant
+  url: https://ha.mcke.lan/
+  type: http
+- name: Jellyfin
+  url: https://media.mcke.lan/
+  type: http
+- name: Nextcloud
+  url: https://cloud.mcke.lan/status.php
+  type: http
+- name: Kiwix
+  url: https://kiwix.mcke.lan/
+  type: http
+- name: Backups Heartbeat
+  url: https://status.mcke.lan/api/push/__KUMA_TOKEN_BACKUP__
+  type: push
+- name: Test-Restore Heartbeat
+  url: https://status.mcke.lan/api/push/__KUMA_TOKEN_RESTORE__
+  type: push
