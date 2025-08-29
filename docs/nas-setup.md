@@ -63,7 +63,7 @@
 
 **Storage → Pools → Create**
 
-* **Name:** `pool`
+* **Name:** `deep-pool`
 * **Topology:**
 
   * **Mirror vdev 1:** NVMe0 + NVMe1
@@ -79,30 +79,30 @@
 
 ## 4) Dataset layout & tunings
 
-Create datasets under `pool` as follows:
+Create datasets under `deep-pool` as follows:
 
 | Dataset                 | Purpose                           | Recordsize | Compression | Atime  | Notes                             |
 | ----------------------- | --------------------------------- | ---------- | ----------- | ------ | --------------------------------- |
-| `pool/apps`             | App configs/state                 | 128K       | lz4         | Off    | Parent for app subdatasets        |
-| `pool/apps/nextcloud`   | Nextcloud data/config             | 128K       | lz4         | Off    | (Optionally xattr=sa)             |
-| `pool/apps/jellyfin`    | Jellyfin config                   | 128K       | lz4         | Off    |                                   |
-| `pool/apps/photoprism`  | PhotoPrism config/indexes         | 128K       | lz4         | Off    |                                   |
-| `pool/apps/paperless`   | Paperless config                  | 128K       | lz4         | Off    |                                   |
-| `pool/media`            | Movies/TV/music                   | **1M**     | lz4         | Off    | Large media files                 |
-| `pool/photos`           | PhotoPrism originals              | **1M**     | lz4         | Off    | Originals; thumbs live under apps |
-| `pool/docs`             | Paperless consume/archive         | 128K       | lz4         | Off    | Lots of small/medium files        |
-| `pool/ebooks`           | Calibre library                   | 128K       | lz4         | Off    |                                   |
-| `pool/backups`          | Restic repos / exported snapshots | 128K       | lz4         | Off    |                                   |
-| `pool/security-reports` | Trivy/scan outputs                | 128K       | lz4         | Off    |                                   |
-| `pool/share-drop` (SMB) | Windows “drop” share (optional)   | 128K       | lz4         | **On** | Separate ACLs (SMB)               |
+| `deep-pool/apps`             | App configs/state                 | 128K       | lz4         | Off    | Parent for app subdatasets        |
+| `deep-pool/apps/nextcloud`   | Nextcloud data/config             | 128K       | lz4         | Off    | (Optionally xattr=sa)             |
+| `deep-pool/apps/jellyfin`    | Jellyfin config                   | 128K       | lz4         | Off    |                                   |
+| `deep-pool/apps/photoprism`  | PhotoPrism config/indexes         | 128K       | lz4         | Off    |                                   |
+| `deep-pool/apps/paperless`   | Paperless config                  | 128K       | lz4         | Off    |                                   |
+| `deep-pool/media`            | Movies/TV/music                   | **1M**     | lz4         | Off    | Large media files                 |
+| `deep-pool/photos`           | PhotoPrism originals              | **1M**     | lz4         | Off    | Originals; thumbs live under apps |
+| `deep-pool/docs`             | Paperless consume/archive         | 128K       | lz4         | Off    | Lots of small/medium files        |
+| `deep-pool/ebooks`           | Calibre library                   | 128K       | lz4         | Off    |                                   |
+| `deep-pool/backups`          | Restic repos / exported snapshots | 128K       | lz4         | Off    |                                   |
+| `deep-pool/security-reports` | Trivy/scan outputs                | 128K       | lz4         | Off    |                                   |
+| `deep-pool/mcke-share` (SMB) | Windows share (optional)   | 128K       | lz4         | **On** | Separate ACLs (SMB)               |
 
 ### Ownership / ACLs (critical)
 
-* Create local **user** `apps` **UID 1000** and **group** `apps` **GID 1000** (Accounts → Users/Groups).
-* For **all NFS-backed datasets** (everything except `share-drop`):
+* Create local **user** `mckeapps` **UID 1000** and **group** `mckeapps` **GID 1000** (Accounts → Users/Groups).
+* For **all NFS-backed datasets** (everything except `mcke-share`):
 
   * **ACL Type:** POSIX/Unix
-  * **Owner:** `apps` / `apps`
+  * **Owner:** `mckeapps` / `mckeapps`
   * **Apply recursively** from each dataset root
 
 > Matches your container `PUID/PGID=1000` so NFS perms “just work”.
@@ -113,8 +113,8 @@ Create datasets under `pool` as follows:
 
 **Sharing → NFS → Add**
 
-* **Path:** `/mnt/pool` (export parent; children inherit)
-* **Mapall User/Group:** `apps` / `apps` (UID/GID 1000)
+* **Path:** `/mnt/deep-pool` (export parent; children inherit)
+* **Mapall User/Group:** `mckeapps` / `mckeapps` (UID/GID 1000)
 * **Networks:** `192.168.1.0/24`
 * **Security:** SYS
 * **NFSv4:** Enable in **Services → NFS** (v3 **off** unless needed)
@@ -125,12 +125,12 @@ Create datasets under `pool` as follows:
 
 ---
 
-## 6) Optional SMB drop share
+## 6) SMB Household share
 
 **Sharing → Windows (SMB) → Add**
 
-* **Path:** `/mnt/pool/share-drop`
-* **Name:** `drop`
+* **Path:** `/mnt/deep-pool/mcke-share`
+* **Name:** `mcke-share`
 * Apply SMB ACLs when prompted; keep guest off (unless you want it).
 
 > Keep SMB to this **separate** path to avoid mixing SMB ACLs on NFS-used directories.
@@ -158,13 +158,22 @@ Start service and confirm **Status** (on-line, battery %, runtime).
 
 **Tasks → S.M.A.R.T. Tests**
 
-* **Short:** Daily (staggered times)
-* **Long/Extended:** Monthly
+* **ZFS Scrub — Monthly**
+  * Pool: `deep-pool`
+  * Schedule: Monthly on the 1st at 02:00 (before the Long test)
+  * Min. days between scrubs: 28–35 (default is fine)
 
-**Tasks → Scrub Tasks**
+* **S.M.A.R.T. Short — Daily**
+  * Type: SHORT
+  * Disks: All Disks (or specifically each NVMe)
+  * Schedule: Daily at 03:00 (pick a quiet hour)
+  * How long it takes: Typically 1–3 minutes per NVMe
+  * Impact: Very light; fine to run daily
 
-* **Pool:** `pool`
-* **Schedule:** Monthly (defaults are fine)
+* **S.M.A.R.T. Long (Extended) — Monthly**
+  * Type: LONG
+  * Disks: All Disks
+  * Schedule: Monthly on the 1st at 04:00
 
 ---
 
@@ -172,13 +181,13 @@ Start service and confirm **Status** (on-line, battery %, runtime).
 
 **Tasks → Periodic Snapshot Tasks:**
 
-* **Configs (`pool/apps`)**
+* **Configs (`deep-pool/apps`)**
 
   * **Every 4h**, keep **2 days** *(or Daily keep 14 if you prefer simpler)*
-* **Docs/Photos (`pool/docs`, `pool/photos`)**
+* **Docs/Photos (`deep-pool/docs`, `deep-pool/photos`)**
 
   * **Daily**, keep **14 days**
-* **Media (`pool/media`, `pool/ebooks`)**
+* **Media (`deep-pool/media`, `deep-pool/ebooks`)**
 
   * **Weekly**, keep **4 weeks** *(optional—mainly against accidental deletions)*
 
@@ -193,7 +202,7 @@ On **HAL**:
 ```bash
 # Mount once
 sudo mkdir -p /mnt/nas
-echo "nas.mcke.lan:/pool /mnt/nas nfs4 defaults,_netdev 0 0" | sudo tee -a /etc/fstab
+echo "nas.mcke.lan:/deep-pool /mnt/nas nfs4 defaults,_netdev 0 0" | sudo tee -a /etc/fstab
 sudo mount -a
 df -h | grep /mnt/nas            # expect a line showing NFS mount
 ```
@@ -231,7 +240,7 @@ rm -f /mnt/nas/media/testfile
 ## 12) Backouts (safe)
 
 * **LACP issues:** switch the NAS back to single-NIC static IP; fix UniFi LAG → re-enable LACP
-* **NFS perms wrong:** ensure **Mapall `apps:apps`**, re-apply recursive ownership on datasets, remount on hosts
+* **NFS perms wrong:** ensure **Mapall `mckeapps:mckeapps`**, re-apply recursive ownership on datasets, remount on hosts
 * **UPS not detected:** try `usbhid-ups` (APC), confirm cable/port; adjust driver if needed
 
 ---
